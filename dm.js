@@ -790,11 +790,44 @@
 
   function nFactor(text) {
     const nd = window.nerdamer;
-    const m = text.match(/([^\n]*(?:x|[a-z])[^\n]*)/i);
-    if (!m) return null;
-    const expr = cleanLine(m[1]).replace(/^.*?:\s*/, '').replace(/=0$/, '');
-    let out; try { out = nd(`factor(${expr})`).toString(); } catch (err) { return null; }
-    return { answers: [{ v: 'factored', val: out }], work: ['Expression:', `  ${expr}`, '', 'Factor:', `  ${out}`, '', `Answer:   ${out}`] };
+    const lines = text.split('\n');
+    let expr = '';
+    for (const l of lines) {
+      if (/x\s*[\^²]/.test(l) && !/Factor/i.test(l)) {
+        expr = cleanLine(l).replace(/^.*?:\s*/, '').replace(/=0$/, '').trim();
+        break;
+      }
+    }
+    if (!expr) return null;
+
+    let out;
+    try { out = nd(`factor(${expr})`).toString(); } catch (err) { return null; }
+
+    // clean formatting: (x-7)*(x+3) -> (x − 7)(x + 3)
+    const cleanOut = out
+      .replace(/\*/g, '')
+      .replace(/-/g, ' − ')
+      .replace(/\+/g, ' + ')
+      .replace(/\s+/g, ' ')
+      .replace(/\(\s+/g, '(')
+      .replace(/\s+\)/g, ')');
+
+    const cleanExpr = expr
+      .replace(/-/g, ' − ')
+      .replace(/\+/g, ' + ')
+      .replace(/\s+/g, ' ');
+
+    const work = [
+      'Expression:',
+      `  ${cleanExpr}`,
+      '',
+      'Factor:',
+      `  ${cleanOut}`,
+      '',
+      `Answer:   ${cleanOut}`
+    ];
+
+    return { answers: [{ v: 'Answer', val: cleanOut }], work };
   }
 
   function manualDistance(text) {
@@ -1977,6 +2010,8 @@ If you cannot reconstruct a solvable problem, return {"error":"reason"}.`;
   }
 
   function detect(t) {
+    if (/\bfactor\b/i.test(t)) return 'factor';
+    if (/\bsolve the (following )?system\b/i.test(t) || /\bby substitution\b/i.test(t) || /\bby elimination\b/i.test(t)) return 'system';
     if (/\bsolve the (following )?system\b/i.test(t) || /\bby substitution\b/i.test(t) || /\bby elimination\b/i.test(t)) return 'system';
     if (/\bname the property\b/i.test(t) || /\bproperties?\s+of\s+real\s+numbers?\b/i.test(t)) return 'property';
     if (/\bcompound\s+inequalit/i.test(t) || (/-?\d+\.?\d*\s*[<>]=?\s*[^<>\n]+?\s*[<>]=?\s*-?\d+\.?\d*/.test(t) && /solve/i.test(t))) return 'compoundIneq';
