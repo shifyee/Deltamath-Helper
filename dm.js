@@ -792,18 +792,25 @@
     const nd = window.nerdamer;
     const lines = text.split('\n');
     let expr = '';
-    for (const l of lines) {
-      if (/x\s*[\^²]/.test(l) && !/Factor/i.test(l)) {
-        expr = cleanLine(l).replace(/^.*?:\s*/, '').replace(/=0$/, '').trim();
-        break;
+
+    // scan from bottom up, find the first line that looks like an expression
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const l = lines[i];
+      if (/[a-z]/i.test(l) && !/factor|solve|question|answer|score|penalty|complete|assignment/i.test(l) && l.length < 100) {
+        const cleaned = cleanLine(l).replace(/^.*?:\s*/, '').replace(/=0$/, '').trim();
+        if (/[a-z]/.test(cleaned)) {
+          expr = cleaned;
+          break;
+        }
       }
     }
+
     if (!expr) return null;
 
     let out;
     try { out = nd(`factor(${expr})`).toString(); } catch (err) { return null; }
 
-    // clean formatting: (x-7)*(x+3) -> (x − 7)(x + 3)
+    // clean formatting
     const cleanOut = out
       .replace(/\*/g, '')
       .replace(/-/g, ' − ')
@@ -821,7 +828,7 @@
       'Expression:',
       `  ${cleanExpr}`,
       '',
-      'Factor:',
+      'Factor out GCF:',
       `  ${cleanOut}`,
       '',
       `Answer:   ${cleanOut}`
